@@ -44,9 +44,9 @@ const CONFIG = {
 
   /* ---- center link icons (add/remove freely) ---- */
   icons: [
-    { image: "assets/icon1.gif", url: "https://t.me/yourname",        label: "Telegram"  },
-    { image: "assets/icon2.gif", url: "https://discord.gg/yourinvite", label: "Discord"   },
-    { image: "assets/icon3.gif", url: "https://instagram.com/you",     label: "Instagram" },
+    { image: "assets/icon1.svg", url: "https://t.me/FuckLuni",         label: "Projects"  },
+    { image: "assets/icon2.svg", url: "https://t.me/ModeAlIah",        label: "Direct Message"   },
+    { image: "assets/icon3.svg", url: "https://github.com/LuniXGod",   label: "Github" },
   ],
 
   /* ---- music playlist (add/remove freely) ---- */
@@ -241,7 +241,7 @@ function renderStatus(p) {
   // unicode fallback (profile emoji, then CONFIG emoji)
   const fallback = () => {
     s.classList.remove("status-media");
-    const e = (p && p.emoji_status) || CONFIG.status || "";
+    const e = CONFIG.status || (p && p.emoji_status) || "";
     if (/[<>]/.test(e)) s.innerHTML = e; else s.textContent = e;
   };
   if (type === "none") { fallback(); return; }
