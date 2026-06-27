@@ -1,0 +1,589 @@
+/* =====================================================================
+   guns.lol-style bio page  -  styles
+   Design system: dark, minimal, glassy, soft white glow on light elements.
+   ===================================================================== */
+
+:root {
+  --bg:            #08080b;
+  --glass-fill:    rgba(14, 14, 18, 0.42);
+  --glass-fill-2:  rgba(20, 20, 26, 0.55);
+  --glass-border:  rgba(255, 255, 255, 0.10);
+  --glass-border-strong: rgba(255, 255, 255, 0.18);
+  --text:          rgba(255, 255, 255, 0.94);
+  --text-dim:      rgba(255, 255, 255, 0.55);
+  --text-faint:    rgba(255, 255, 255, 0.38);
+  --accent:        #ffffff;
+
+  /* layered soft white glow tokens */
+  --glow-sm: 0 0 6px rgba(255,255,255,0.25), 0 0 14px rgba(255,255,255,0.10);
+  --glow-md: 0 0 10px rgba(255,255,255,0.30), 0 0 26px rgba(255,255,255,0.12);
+  --glow-lg: 0 0 18px rgba(255,255,255,0.22), 0 0 50px rgba(255,255,255,0.10);
+
+  --shadow-soft: 0 20px 60px rgba(0,0,0,0.55), 0 4px 18px rgba(0,0,0,0.4);
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --t: 260ms;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: #000;            /* opaque — never let the OS desktop show through */
+  color: var(--text);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* When the custom cursor is active, hide the native one everywhere. */
+body.custom-cursor,
+body.custom-cursor * { cursor: none !important; }
+
+a { color: inherit; text-decoration: none; }
+
+/* ====================== BACKGROUND LAYERS ====================== */
+.bg-video {
+  position: fixed;
+  inset: 0;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  min-width: 100vw; min-height: 100vh;
+  object-fit: cover;           /* fill edge-to-edge at any window size */
+  z-index: 0;                  /* visible bottom layer (NOT negative: a negative
+                                  z-index can render behind the opaque body bg) */
+  /* keep the video bright; contrast/darkening is handled by .bg-overlay */
+  filter: brightness(1.1) saturate(1.05);
+  transform: scale(1.04);      /* hide any edge jitter on loop */
+}
+
+/* use dynamic viewport units on supporting browsers so mobile URL bars don't
+   leave a gap at the bottom */
+@supports (height: 100dvh) {
+  .bg-video { height: 100dvh; min-height: 100dvh; }
+}
+
+.bg-overlay {
+  position: fixed; inset: 0; z-index: 1;  /* ABOVE the video, BELOW the content */
+  pointer-events: none;                   /* never intercept clicks */
+  background:
+    radial-gradient(120% 90% at 50% 25%, rgba(0,0,0,0.05), rgba(0,0,0,0.35) 80%),
+    linear-gradient(to bottom, rgba(0,0,0,0.18), rgba(0,0,0,0.32));
+}
+
+/* If the video can't load/decode, show a tasteful dark gradient instead so the
+   page never looks broken (set by JS on the <video> "error" event). */
+body.video-failed .bg-video { display: none; }
+body.video-failed {
+  background:
+    radial-gradient(90% 70% at 50% 20%, #15151c 0%, #0a0a0e 55%, #060608 100%);
+}
+
+/* Film-grain / dithering texture (animated, very subtle) */
+.bg-grain {
+  position: fixed; inset: -150%; z-index: 2;  /* above video + overlay, below content */
+  width: 400%; height: 400%;
+  pointer-events: none;
+  opacity: 0.06;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation: grain 7s steps(8) infinite;
+  will-change: transform;
+}
+@keyframes grain {
+  0%   { transform: translate(0,0); }
+  10%  { transform: translate(-5%,-8%); }
+  20%  { transform: translate(-12%,4%); }
+  30%  { transform: translate(6%,-12%); }
+  40%  { transform: translate(-7%,9%); }
+  50%  { transform: translate(-12%,5%); }
+  60%  { transform: translate(9%,1%); }
+  70%  { transform: translate(2%,12%); }
+  80%  { transform: translate(-9%,7%); }
+  90%  { transform: translate(7%,-4%); }
+  100% { transform: translate(0,0); }
+}
+
+.bg-vignette {
+  position: fixed; inset: 0; z-index: 3; pointer-events: none;  /* below content (5) */
+  box-shadow: inset 0 0 220px 40px rgba(0,0,0,0.6);
+}
+
+/* ====================== ENTER GATE ====================== */
+.enter-gate {
+  position: fixed; inset: 0; z-index: 50;
+  display: grid; place-items: center;
+  background: rgba(4,4,6,0.55);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  transition: opacity 600ms var(--ease), visibility 600ms;
+}
+.enter-gate.hidden { opacity: 0; visibility: hidden; }
+
+.enter-btn {
+  background: transparent; border: none;
+  color: var(--text);
+  font: inherit; font-size: 0.95rem; font-weight: 500;
+  letter-spacing: 0.32em; text-transform: uppercase;
+  padding: 18px 26px;
+  opacity: 0.9;
+  transition: transform var(--t) var(--ease), letter-spacing var(--t) var(--ease), opacity var(--t);
+  text-shadow: var(--glow-md);
+  animation: breathe 3.2s ease-in-out infinite;
+}
+.enter-btn:hover { transform: scale(1.06); letter-spacing: 0.42em; opacity: 1; }
+@keyframes breathe {
+  0%,100% { opacity: 0.78; }
+  50%     { opacity: 1; }
+}
+
+/* ====================== CONTENT WRAPPER ====================== */
+.content {
+  position: relative;
+  z-index: 5;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  padding: 24px;
+  /* revealed after enter */
+  opacity: 0;
+  transform: translateY(14px) scale(0.99);
+  transition: opacity 800ms var(--ease), transform 800ms var(--ease);
+}
+body.entered .content { opacity: 1; transform: none; }
+
+/* ====================== PROFILE CARD ====================== */
+.card-wrap { perspective: 1000px; }
+
+.card {
+  position: relative;
+  width: min(92vw, 380px);
+  border-radius: 22px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-soft),
+              inset 0 1px 0 rgba(255,255,255,0.08),
+              0 0 0 1px rgba(255,255,255,0.02);
+  backdrop-filter: blur(22px) saturate(130%);
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  overflow: hidden;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 120ms var(--ease), box-shadow var(--t) var(--ease);
+}
+.card:hover {
+  box-shadow: var(--shadow-soft),
+              inset 0 1px 0 rgba(255,255,255,0.12),
+              0 0 40px rgba(255,255,255,0.06);
+}
+
+/* moving glare highlight that tracks the tilt */
+.card-glare {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+      220px 220px at var(--gx, 50%) var(--gy, 0%),
+      rgba(255,255,255,0.16),
+      rgba(255,255,255,0.04) 35%,
+      transparent 60%);
+  opacity: 0;
+  transition: opacity var(--t) var(--ease);
+  mix-blend-mode: screen;
+  z-index: 2;
+}
+.card:hover .card-glare { opacity: 1; }
+
+.card-inner {
+  position: relative;
+  z-index: 1;
+  padding: 28px 26px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transform: translateZ(40px); /* lift contents for parallax depth */
+}
+
+.center-gif {
+  width: 54px; height: 54px;
+  object-fit: contain;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.35));
+}
+
+/* avatar with soft glow ring */
+.avatar-wrap {
+  position: relative;
+  width: 104px; height: 104px;
+  margin-bottom: 16px;
+}
+.avatar {
+  width: 100%; height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid rgba(255,255,255,0.18);
+  box-shadow: var(--glow-md), 0 6px 22px rgba(0,0,0,0.5);
+  background: rgba(255,255,255,0.04);
+}
+.avatar-ring {
+  position: absolute; inset: -6px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.16);
+  box-shadow: 0 0 22px rgba(255,255,255,0.18);
+  animation: ringPulse 3.4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes ringPulse {
+  0%,100% { transform: scale(1);    opacity: 0.55; }
+  50%     { transform: scale(1.06); opacity: 1; }
+}
+
+.identity { display: flex; flex-direction: column; gap: 4px; }
+
+.nick-row {
+  display: flex; align-items: center; justify-content: center;
+  gap: 9px;
+}
+.nick {
+  font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--text);
+  text-shadow: var(--glow-md);
+}
+
+/* animated status badge - easy to swap for an <img>/<svg>/gif */
+.status {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  font-size: 1rem; line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(255,255,255,0.4));
+  animation: statusPulse 2.2s ease-in-out infinite;
+}
+.status img, .status svg { width: 100%; height: 100%; object-fit: contain; }
+@keyframes statusPulse {
+  0%,100% { transform: scale(1);   opacity: 0.9; }
+  50%     { transform: scale(1.18); opacity: 1; }
+}
+
+/* when showing a real sticker (tgs/webm/webp) give it a slightly bigger box and
+   drop the emoji pulse (the sticker animates itself). Keep the soft glow. */
+.status.status-media {
+  width: 28px; height: 28px;
+  animation: none;
+  filter: drop-shadow(0 0 7px rgba(255,255,255,0.45));
+}
+.status.status-media video,
+.status.status-media .status-lottie { width: 100%; height: 100%; }
+.status.status-media video { object-fit: contain; }
+.status.status-media .status-lottie svg { width: 100% !important; height: 100% !important; display: block; }
+
+/* @username line, dimmer, sits just under the display name */
+.username {
+  font-size: 0.86rem; font-weight: 500;
+  color: var(--text-dim);
+  letter-spacing: 0.01em;
+  text-shadow: 0 0 8px rgba(255,255,255,0.10);
+  margin-top: 1px;
+}
+
+.last-seen {
+  font-size: 0.8rem; font-weight: 400;
+  color: var(--text-faint);
+  text-shadow: 0 0 8px rgba(255,255,255,0.08);
+  margin-top: 4px;
+}
+
+/* ====================== CENTER ICON LINKS ====================== */
+.icons {
+  display: flex; align-items: center; justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.icon-link {
+  position: relative;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  transition: transform var(--t) var(--ease), filter var(--t) var(--ease);
+}
+.icon-link img,
+.icon-link .icon-fallback {
+  width: 28px; height: 28px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 7px rgba(255,255,255,0.30));
+  transition: filter var(--t) var(--ease), transform var(--t) var(--ease);
+}
+.icon-link:hover { transform: translateY(-4px); }
+.icon-link:hover img,
+.icon-link:hover .icon-fallback {
+  filter: drop-shadow(0 0 12px rgba(255,255,255,0.65)) brightness(1.1);
+}
+
+/* glass tooltip above each icon */
+.icon-tip {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translate(-50%, 6px);
+  white-space: nowrap;
+  padding: 6px 11px;
+  font-size: 0.74rem; font-weight: 500; letter-spacing: 0.02em;
+  color: var(--text);
+  background: var(--glass-fill-2);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), var(--glow-sm);
+  text-shadow: 0 0 8px rgba(255,255,255,0.18);
+  opacity: 0; visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--t) var(--ease), transform var(--t) var(--ease), visibility var(--t);
+}
+.icon-tip::after {
+  content: ""; position: absolute; top: 100%; left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--glass-border);
+}
+.icon-link:hover .icon-tip,
+.icon-link:focus-visible .icon-tip {
+  opacity: 1; visibility: visible;
+  transform: translate(-50%, 0);
+}
+
+/* ====================== VIEWS COUNTER ====================== */
+.views {
+  position: fixed;
+  left: 18px; bottom: 16px;
+  z-index: 20;
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.8rem; font-weight: 500;
+  color: var(--text-dim);
+  text-shadow: 0 0 8px rgba(255,255,255,0.12);
+  opacity: 0;
+  transition: opacity 700ms var(--ease) 300ms;
+}
+body.entered .views { opacity: 1; }
+.views-eye { filter: drop-shadow(0 0 5px rgba(255,255,255,0.25)); }
+.views-count { color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* ====================== MUSIC PLAYER ====================== */
+/* The dock owns positioning + entrance animation + perspective. */
+.player-dock {
+  position: fixed;
+  left: 50%; bottom: 20px;
+  transform: translateX(-50%) translateY(20px);
+  width: min(92vw, 420px);
+  z-index: 20;
+  perspective: 900px;
+  opacity: 0;
+  transition: opacity 700ms var(--ease) 200ms, transform 700ms var(--ease) 200ms;
+}
+body.entered .player-dock { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* The inner player is free to tilt (JS writes its transform). */
+.player {
+  position: relative;
+  display: flex; align-items: center; gap: 14px;
+  width: 100%;
+  padding: 12px 18px;
+  border-radius: 18px;
+  background: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  box-shadow: var(--shadow-soft),
+              inset 0 1px 0 rgba(255,255,255,0.08),
+              0 0 30px rgba(255,255,255,0.05);
+  overflow: hidden;
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: transform 120ms var(--ease), box-shadow var(--t) var(--ease);
+}
+.player:hover {
+  box-shadow: var(--shadow-soft),
+              inset 0 1px 0 rgba(255,255,255,0.12),
+              0 0 40px rgba(255,255,255,0.07);
+}
+
+/* moving glare that tracks the player's tilt */
+.player-glare {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(
+      200px 200px at var(--gx, 50%) var(--gy, 50%),
+      rgba(255,255,255,0.14),
+      rgba(255,255,255,0.03) 40%,
+      transparent 62%);
+  opacity: 0;
+  transition: opacity var(--t) var(--ease);
+  mix-blend-mode: screen;
+  z-index: 0;
+}
+.player:hover .player-glare { opacity: 1; }
+/* keep controls above the glare */
+.player-cloud, .player-body { position: relative; z-index: 1; }
+
+.player-cloud {
+  flex: 0 0 auto;
+  color: var(--text);
+  filter: drop-shadow(0 0 8px rgba(255,255,255,0.35));
+  display: grid; place-items: center;
+}
+
+.player-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+
+.player-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+.player-meta { min-width: 0; flex: 1 1 auto; }
+.track-title {
+  display: block;
+  font-size: 0.82rem; font-weight: 500;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  text-shadow: 0 0 8px rgba(255,255,255,0.14);
+}
+
+.player-controls { display: flex; align-items: center; gap: 4px; flex: 0 0 auto; }
+.ctrl {
+  display: grid; place-items: center;
+  width: 30px; height: 30px;
+  border: none; border-radius: 50%;
+  background: transparent;
+  color: var(--text-dim);
+  transition: color var(--t) var(--ease), background var(--t) var(--ease), transform var(--t) var(--ease), box-shadow var(--t);
+}
+.ctrl:hover { color: var(--text); transform: scale(1.12); }
+.ctrl-play {
+  width: 34px; height: 34px;
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+  box-shadow: var(--glow-sm), inset 0 0 0 1px rgba(255,255,255,0.12);
+}
+.ctrl-play:hover { box-shadow: var(--glow-md), inset 0 0 0 1px rgba(255,255,255,0.2); }
+/* exactly one glyph visible at a time (JS also drives this via style.display) */
+.ctrl svg[hidden] { display: none !important; }
+.ctrl-play svg { grid-area: 1 / 1; } /* stack in the same grid cell, centered */
+
+.player-progress { display: flex; align-items: center; gap: 9px; }
+.time {
+  font-size: 0.66rem; color: var(--text-faint);
+  font-variant-numeric: tabular-nums; flex: 0 0 auto;
+  min-width: 28px; text-align: center;
+}
+
+.seek {
+  position: relative; flex: 1 1 auto;
+  height: 14px; display: flex; align-items: center;
+  cursor: pointer;
+}
+.seek::before {
+  content: ""; position: absolute; left: 0; right: 0; height: 3px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.14);
+}
+.seek-fill {
+  position: absolute; left: 0; height: 3px; width: 0%;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.92);
+  box-shadow: 0 0 8px rgba(255,255,255,0.6);
+}
+.seek-handle {
+  position: absolute; top: 50%; left: 0%;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #fff;
+  transform: translate(-50%, -50%) scale(0.6);
+  opacity: 0;
+  box-shadow: 0 0 10px rgba(255,255,255,0.8);
+  transition: opacity var(--t), transform var(--t) var(--ease);
+}
+.seek:hover .seek-handle,
+.seek.dragging .seek-handle { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+/* ====================== VIDEO "CLICK TO START" HINT ====================== */
+.video-hint {
+  position: fixed; left: 50%; top: 18px;
+  transform: translateX(-50%) translateY(-8px);
+  z-index: 30;
+  padding: 7px 14px; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 500;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text);
+  background: var(--glass-fill-2);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5), var(--glow-sm);
+  text-shadow: var(--glow-sm);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity var(--t) var(--ease), transform var(--t) var(--ease), visibility var(--t);
+}
+.video-hint.show {
+  opacity: 1; visibility: visible;
+  transform: translateX(-50%) translateY(0);
+  animation: breathe 2.6s ease-in-out infinite;
+}
+
+/* ====================== CUSTOM CURSOR ====================== */
+.cursor-dot {
+  position: fixed; top: 0; left: 0;
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.95);
+  box-shadow: 0 0 8px rgba(255,255,255,0.8), 0 0 22px rgba(255,255,255,0.45);
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  transition: width 180ms var(--ease), height 180ms var(--ease),
+              background 180ms var(--ease), box-shadow 180ms var(--ease);
+  mix-blend-mode: screen;
+  opacity: 0;
+}
+body.custom-cursor .cursor-dot { opacity: 1; }
+.cursor-dot.hovering {
+  width: 30px; height: 30px;
+  background: rgba(255,255,255,0.12);
+  box-shadow: 0 0 14px rgba(255,255,255,0.55), inset 0 0 0 1px rgba(255,255,255,0.6);
+}
+
+/* sparkle particles spawned by JS */
+.sparkle {
+  position: fixed;
+  width: 6px; height: 6px;
+  pointer-events: none;
+  z-index: 9998;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(255,255,255,0.6) 40%, transparent 70%);
+  box-shadow: 0 0 6px rgba(255,255,255,0.8);
+  will-change: transform, opacity;
+  transform: translate(-50%, -50%);
+}
+
+/* ====================== RESPONSIVE ====================== */
+@media (max-width: 480px) {
+  .card { width: 90vw; }
+  .card-inner { padding: 24px 20px; }
+  .nick { font-size: 1.35rem; }
+  .player { width: 94vw; bottom: 14px; padding: 10px 14px; gap: 10px; }
+  .icons { gap: 16px; }
+  .views { left: 14px; bottom: 12px; }
+}
+
+/* shorter screens: tighten vertical rhythm so player never overlaps card */
+@media (max-height: 620px) {
+  .content { justify-content: flex-start; padding-top: 40px; }
+}
+
+/* ====================== REDUCED MOTION ====================== */
+@media (prefers-reduced-motion: reduce) {
+  .bg-grain,
+  .avatar-ring,
+  .status,
+  .enter-btn { animation: none !important; }
+  .bg-video { transform: none; }
+  * { transition-duration: 1ms !important; }
+}
