@@ -51,8 +51,7 @@ const CONFIG = {
 
   /* ---- music playlist (add/remove freely) ---- */
   playlist: [
-    { title: "sit n think — abamadeit", file: "assets/track1.mp3" },
-    { title: "Misery — Pupsies", file: "assets/track2.mp3" },
+    { title: "Люблю — БИТЬМРАЗЕЙ", file: "assets/track3.mp3" },
   ],
   autoplayOnEnter: true,   // start music right after the "click to enter" gate
 
