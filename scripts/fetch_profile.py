@@ -30,6 +30,16 @@ import urllib.request
 API = "https://api.telegram.org"
 TIMEOUT = 30
 
+# Anchor every output path to the REPO ROOT (this file lives in <root>/scripts/),
+# so the script writes to the same place no matter what CWD it is invoked from
+# (a workflow `working-directory:`, a cron job, `cd scripts && python ...`, etc.).
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def repo_path(*parts):
+    """Absolute path inside the repo, independent of the process CWD."""
+    return os.path.join(REPO_ROOT, *parts)
+
 
 def api_call(token, method, params=None):
     url = f"{API}/bot{token}/{method}"
@@ -43,20 +53,34 @@ def api_call(token, method, params=None):
 
 
 def download(url, dest):
+    """Download `url` to `dest`, then report exactly where it landed.
+
+    The absolute path + byte size go to stderr BEFORE the workflow's `git add`
+    runs, so a failing run's log shows whether the file was written, where, and
+    whether it is non-empty.
+    """
+    dest = os.path.abspath(dest)
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     with urllib.request.urlopen(url, timeout=TIMEOUT) as r:
         body = r.read()
     with open(dest, "wb") as f:
         f.write(body)
 
+    size = os.path.getsize(dest)
+    print(f"[write] {dest} ({size} bytes) [cwd={os.getcwd()}]", file=sys.stderr)
+    if size == 0:
+        print(f"[warn] {dest} is EMPTY - the API returned no bytes", file=sys.stderr)
+    return size
+
 
 def clear_status_files():
     """Remove any stale assets/status.* so a removed/changed status doesn't linger."""
-    for f in glob.glob("assets/status.*"):
+    for f in glob.glob(repo_path("assets", "status.*")):
         try:
             os.remove(f)
-        except OSError:
-            pass
+            print(f"[clean] removed stale {f}", file=sys.stderr)
+        except OSError as e:
+            print(f"[warn] could not remove {f}: {e}", file=sys.stderr)
 
 
 def resolve_status(token, chat):
@@ -96,9 +120,9 @@ def resolve_status(token, chat):
 
     try:
         file_info = api_call(token, "getFile", {"file_id": sticker["file_id"]})
-        download(f"{API}/file/bot{token}/{file_info['file_path']}",
-                 f"assets/status.{ext}")
-        print(f"[ok] status sticker -> assets/status.{ext}")
+        dest = repo_path("assets", f"status.{ext}")
+        size = download(f"{API}/file/bot{token}/{file_info['file_path']}", dest)
+        print(f"[ok] status sticker -> {dest} ({size} bytes)")
         return emoji, ext
     except Exception as e:  # noqa: BLE001
         print(f"[warn] status sticker download failed: {e}", file=sys.stderr)
@@ -118,8 +142,9 @@ def fetch_avatar(token, user_id):
         file_id = sizes[-1]["file_id"]        # largest
         file_info = api_call(token, "getFile", {"file_id": file_id})
         file_path = file_info["file_path"]
-        download(f"{API}/file/bot{token}/{file_path}", "assets/avatar.png")
-        print("[ok] avatar -> assets/avatar.png")
+        dest = repo_path("assets", "avatar.png")
+        size = download(f"{API}/file/bot{token}/{file_path}", dest)
+        print(f"[ok] avatar -> {dest} ({size} bytes)")
     except Exception as e:  # noqa: BLE001
         print(f"[warn] avatar fetch failed: {e}", file=sys.stderr)
 
@@ -131,6 +156,9 @@ def main():
         print("ERROR: set TG_BOT_TOKEN (secret) and TG_USER_ID (variable).",
               file=sys.stderr)
         sys.exit(1)
+
+    print(f"[paths] repo root = {REPO_ROOT}", file=sys.stderr)
+    print(f"[paths] cwd       = {os.getcwd()}", file=sys.stderr)
 
     # getChat works once the user has messaged the bot at least once.
     chat = api_call(token, "getChat", {"chat_id": user_id})
@@ -148,9 +176,20 @@ def main():
         "status_type": status_type,     # "tgs" | "webm" | "webp" | "none"
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
     }
-    with open("profile.json", "w", encoding="utf-8") as f:
+    profile_path = repo_path("profile.json")
+    with open(profile_path, "w", encoding="utf-8") as f:
         json.dump(profile, f, ensure_ascii=False, indent=2)
+    print(f"[write] {profile_path} ({os.path.getsize(profile_path)} bytes)",
+          file=sys.stderr)
     print("[ok] wrote profile.json:", json.dumps(profile, ensure_ascii=False))
+
+    # Final inventory of everything we were supposed to produce, so the log
+    # shows the on-disk truth immediately before the workflow stages files.
+    print("[files] produced this run:", file=sys.stderr)
+    for f in sorted(glob.glob(repo_path("assets", "status.*"))
+                    + [repo_path("assets", "avatar.png"), profile_path]):
+        state = f"{os.path.getsize(f)} bytes" if os.path.exists(f) else "MISSING"
+        print(f"  {f}  ->  {state}", file=sys.stderr)
 
 
 if __name__ == "__main__":

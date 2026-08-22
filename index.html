@@ -17,7 +17,9 @@
    -------------------------------------------------------------------
    DROP THESE FILES INTO  /assets  (filenames are set in script.js CONFIG):
    -------------------------------------------------------------------
-     assets/background.mp4   - full-screen looping background video (muted)
+     assets/background.mp4   - full-screen background (mp4/webm/gif/jpg/png/webp)
+                             set the filename in script.js CONFIG.background —
+                             the EXTENSION decides how it's rendered
      assets/avatar.png       - your circular profile picture
      assets/center.gif       - OPTIONAL small animated gif shown in the card
      assets/icon1.gif        - center link icon #1 (any image/gif)
@@ -48,7 +50,14 @@
 
   <!-- ============ BACKGROUND LAYERS ============ -->
   <!--
-    The background video MUST be H.264 (AVC) in an .mp4 container to autoplay.
+    The background element is built by JS (setBackground() in script.js) from
+    CONFIG.background — its EXTENSION decides what gets created here:
+        .mp4 / .webm  ->  <video autoplay muted loop playsinline>  (+ autoplay retries)
+        .gif          ->  <img>  (gifs animate natively)
+        .jpg/.png/...  ->  <img>
+    Never edit this slot by hand; just change CONFIG.background.
+
+    NOTE for videos: the file MUST be H.264 (AVC) in an .mp4 container to autoplay.
     Many .mp4 files are actually H.265/HEVC, ProRes, etc. and won't render.
     ALSO: do NOT strip the audio track. Chrome power-saver PAUSES "video-only"
     (no-audio) background media — which looks like a black, frozen video. Encode
@@ -58,9 +67,7 @@
                -vf "scale='min(1280,iw)':-2" -c:a aac -shortest assets/background.mp4
     (The script also retries play() on every readiness event + first interaction.)
   -->
-  <video id="bg-video" class="bg-video" autoplay muted loop playsinline preload="auto" poster="">
-    <source id="bg-video-src" src="assets/background.mp4" type="video/mp4" />
-  </video>
+  <div id="bg-video-slot" class="bg-video"></div>
   <div class="bg-overlay" aria-hidden="true"></div>
   <div class="bg-grain" aria-hidden="true"></div>
   <div class="bg-vignette" aria-hidden="true"></div>

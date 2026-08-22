@@ -1,6 +1,6 @@
 name: Update Telegram profile
 
-# Refreshes profile.json + assets/avatar.png from your Telegram profile.
+# Refreshes profile.json + assets/avatar.png + assets/status.* from your Telegram profile.
 on:
   schedule:
     - cron: "*/30 * * * *"   # every 30 minutes (UTC)
@@ -37,11 +37,33 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add profile.json
-          git add assets/avatar.png 2>/dev/null || true
-          git add assets/status.tgs assets/status.webm assets/status.webp 2>/dev/null || true
-          # stage deletions of any removed status files too
-          git add -u assets 2>/dev/null || true
+
+          echo "::group::debug: on-disk state before staging"
+          echo "--- pwd ---"
+          pwd
+          echo "--- ls -la assets/ (perms show if checkout left it read-only) ---"
+          ls -la assets/ || echo "assets/ MISSING"
+          echo "--- git status --porcelain (untracked = ??, modified = ' M') ---"
+          git status --porcelain
+          echo "--- is any status file ignored? (no output = not ignored) ---"
+          for f in assets/status.tgs assets/status.webm assets/status.webp; do
+            git check-ignore -v "$f" && echo "  ^^ $f IS IGNORED" || true
+          done
+          echo "::endgroup::"
+
+          # Stage with a SINGLE `git add -A` over the paths we own.
+          #   -A  = adds new + modified + deleted, so brand-new files (status.*
+          #         has never been tracked) and removed status files both work.
+          # The old code listed all three status.* extensions in one `git add`;
+          # only ONE of them ever exists, so git aborted on the first missing
+          # pathspec ("did not match any files") and staged NOTHING - silently,
+          # because the error was sent to /dev/null. The follow-up `git add -u`
+          # then skipped status.* too, since -u only touches ALREADY-TRACKED
+          # files. Net effect: profile.json was the only file ever committed.
+          git add -A -- profile.json assets
+
+          echo "--- staged for commit ---"
+          git diff --cached --name-status
           if git diff --cached --quiet; then
             echo "No profile changes."
           else

@@ -38,29 +38,22 @@ const CONFIG = {
 
   /* ---- media ---- */
   avatar:          "assets/avatar.png",
-
-  /* Full-screen background. Change ONLY this path — the file EXTENSION decides
-     how it is rendered, no HTML edits needed:
-         .mp4 / .webm        -> looping muted <video> (with autoplay retries)
-         .gif                -> <img> (animates on its own)
-         .jpg .jpeg .png .webp / .avif -> <img>
-     Sizing / overlay / darkening are identical for every type.               */
-  background:      "assets/background.jpg",
+  backgroundVideo: "assets/background.jpg",
   centerGif:       "",                    // OPTIONAL small gif in the card,
                                          //   e.g. "assets/center.gif" ("" = off)
 
   /* ---- center link icons (add/remove freely) ---- */
   icons: [
     { image: "assets/icon1.svg", url: "https://telegram.me/FuckLuni",         label: "Projects"  },
-    { image: "assets/icon2.svg", url: "https://telegram.me/ModeAlIah",        label: "Direct Message"   },
+    { image: "assets/icon2.svg", url: "https://telegram.me/id110026867",        label: "Direct Message"   },
     { image: "assets/icon3.svg", url: "https://github.com/LuniXGod",   label: "Github" },
   ],
 
   /* ---- music playlist (add/remove freely) ---- */
   playlist: [
     { title: "Myulee — Prombl", file: "assets/track1.mp3" },
-    { title: "Порезы на руках — FORTUNA 812", file: "assets/track3.mp3" },
-    { title: "Люблю — БИТЬМРАЗЕЙ", file: "assets/track2.mp3" },
+    { title: "Порезы на руках — FORTUNA 812", file: "assets/track2.mp3" },
+    { title: "Люблю — БИТЬМРАЗЕЙ", file: "assets/track3.mp3" },
   ],
   autoplayOnEnter: true,   // start music right after the "click to enter" gate
 
@@ -90,87 +83,47 @@ const isFinePointer =
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const lerp  = (a, b, t) => a + (b - a) * t;
 
-/* ===================== FORMAT-AGNOSTIC BACKGROUND ====================== */
-/* Reads CONFIG.background, looks at the extension, and builds the matching
-   element into #bg-video-slot. The created node always carries the SAME
-   .bg-video class, so sizing / object-fit / z-index / filter are identical no
-   matter which format is used. Video-only logic (autoplay retries, the "click
-   to start" hint, diagnostics) is attached ONLY when a <video> was created.  */
+/* ===================== POPULATE STATIC CONTENT ====================== */
+function hydrate() {
+  $("#nick").textContent = CONFIG.nickname;
+  $("#last-seen").textContent = CONFIG.lastSeen;
 
-const VIDEO_TYPES = { mp4: "video/mp4", m4v: "video/mp4", mov: "video/mp4",
-                      webm: "video/webm", ogv: "video/ogg", ogg: "video/ogg" };
-
-function extOf(path) {
-  // strip ?query / #hash first so "bg.mp4?v=2" still resolves to "mp4"
-  const clean = String(path).split(/[?#]/)[0];
-  const m = clean.match(/\.([a-z0-9]+)$/i);
-  return m ? m[1].toLowerCase() : "";
-}
-
-function setBackground() {
-  const slot = $("#bg-video-slot");
-  const hint = $("#video-hint");
-  if (!slot) return;
-
-  const src = CONFIG.background || CONFIG.backgroundVideo || "";
-  slot.innerHTML = "";                       // idempotent: safe to call twice
-  document.body.classList.remove("video-failed");
-  window.__playBgVideo = () => {};           // always defined (no-op for images)
-
-  if (!src) { document.body.classList.add("video-failed"); return; }
-
-  const ext = extOf(src);
-  const isVideo = Object.prototype.hasOwnProperty.call(VIDEO_TYPES, ext);
-
-  const onFail = (what) => () => {
-    document.body.classList.add("video-failed");
-    console.warn(
-      `[bg] could not load '${src}' as ${what}. Confirm the file exists` +
-      (what === "video"
-        ? " and is H.264/AAC MP4 (re-encode with ffmpeg if needed)."
-        : " and the extension matches the real file type.")
-    );
-  };
-
-  /* ---------- IMAGE (.gif / .jpg / .jpeg / .png / .webp / .avif / ...) ------
-     No JS needed: gifs animate natively, stills just paint. Deliberately NO
-     video listeners here, so nothing can hit a null/none-video reference.  */
-  if (!isVideo) {
-    const img = document.createElement("img");
-    img.className = "bg-video";
-    img.alt = "";
-    img.decoding = "async";
-    img.addEventListener("error", onFail("image"));
-    img.src = src;
-    slot.appendChild(img);
-    hint && hint.classList.remove("show");   // images never need a user gesture
-    return;
+  // username fallback line (overridden by profile.json if available)
+  if (CONFIG.username) {
+    const u = $("#username");
+    u.textContent = "@" + String(CONFIG.username).replace(/^@/, "");
+    u.hidden = false;
   }
 
-  /* ---------- VIDEO (.mp4 / .webm / ...) ---------- */
-  const video = document.createElement("video");
-  video.className = "bg-video";
-  video.autoplay = true;
-  video.loop = true;
-  video.muted = true;                        // property AND attribute: some
-  video.setAttribute("muted", "");           // browsers only honour the attr
-  video.playsInline = true;
-  video.setAttribute("playsinline", "");
-  video.setAttribute("autoplay", "");
-  video.setAttribute("loop", "");
-  video.preload = "auto";
-  video.poster = "";
+  const statusEl = $("#status");
+  // allow emoji OR raw markup (img/svg/gif)
+  if (/[<>]/.test(CONFIG.status)) statusEl.innerHTML = CONFIG.status;
+  else statusEl.textContent = CONFIG.status;
 
-  const source = document.createElement("source");
-  source.id = "bg-video-src";
-  source.src = src;
-  if (VIDEO_TYPES[ext]) source.type = VIDEO_TYPES[ext];
-  video.appendChild(source);
-  slot.appendChild(video);
+  const avatar = $("#avatar");
+  avatar.src = CONFIG.avatar;
+  avatar.onerror = () => {
+    avatar.src =
+      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23222'/%3E%3Ccircle cx='50' cy='40' r='18' fill='%23555'/%3E%3Cpath d='M20 86c0-17 13-26 30-26s30 9 30 26' fill='%23555'/%3E%3C/svg%3E";
+  };
+
+  // ---- background video: point the <source> at the configured path, then
+  //      (re)load. If it can't decode/load, fall back to a dark gradient. ----
+  const video = $("#bg-video");
+  const vsrc = $("#bg-video-src");
+  const hint = $("#video-hint");
+  vsrc.src = CONFIG.backgroundVideo;
   video.load();
 
-  video.addEventListener("error", onFail("video"));
-  source.addEventListener("error", onFail("video"));
+  const onVideoFail = () => {
+    document.body.classList.add("video-failed");
+    console.warn(
+      "[bg-video] could not load/play '" + CONFIG.backgroundVideo + "'. " +
+      "Confirm the file exists and is H.264/AAC MP4 (re-encode with ffmpeg if needed)."
+    );
+  };
+  video.addEventListener("error", onVideoFail);
+  vsrc.addEventListener("error", onVideoFail);
 
   // Bulletproof autoplay. Muted autoplay usually works, but some browsers block
   // it until a real user gesture. We try on load + every readiness event, and on
@@ -208,33 +161,6 @@ function setBackground() {
   );
   // also let the enter gate kick it off
   window.__playBgVideo = () => tryPlayVideo("enter-gate");
-}
-
-/* ===================== POPULATE STATIC CONTENT ====================== */
-function hydrate() {
-  $("#nick").textContent = CONFIG.nickname;
-  $("#last-seen").textContent = CONFIG.lastSeen;
-
-  // username fallback line (overridden by profile.json if available)
-  if (CONFIG.username) {
-    const u = $("#username");
-    u.textContent = "@" + String(CONFIG.username).replace(/^@/, "");
-    u.hidden = false;
-  }
-
-  const statusEl = $("#status");
-  // allow emoji OR raw markup (img/svg/gif)
-  if (/[<>]/.test(CONFIG.status)) statusEl.innerHTML = CONFIG.status;
-  else statusEl.textContent = CONFIG.status;
-
-  const avatar = $("#avatar");
-  avatar.src = CONFIG.avatar;
-  avatar.onerror = () => {
-    avatar.src =
-      "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23222'/%3E%3Ccircle cx='50' cy='40' r='18' fill='%23555'/%3E%3Cpath d='M20 86c0-17 13-26 30-26s30 9 30 26' fill='%23555'/%3E%3C/svg%3E";
-  };
-
-  setBackground();   // builds <video>/<img> into #bg-video-slot from CONFIG.background
 
   if (CONFIG.centerGif) {
     const g = $("#center-gif");
@@ -678,9 +604,8 @@ function initGate(player) {
   function enter() {
     document.body.classList.add("entered");
     gate.classList.add("hidden");
-    // A video background may have been blocked from autoplay until this very
-    // interaction; for image/gif backgrounds this is a harmless no-op.
-    window.__playBgVideo?.();
+    // background video may have been blocked from autoplay until interaction
+    window.__playBgVideo ? window.__playBgVideo() : $("#bg-video").play?.().catch(() => {});
     if (CONFIG.autoplayOnEnter && player) player.play();
     btn.removeEventListener("click", enter);
     setTimeout(() => { gate.style.display = "none"; }, 700);
