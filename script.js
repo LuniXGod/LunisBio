@@ -313,35 +313,57 @@ function renderStatus(p) {
   const s = $("#status");
   const type = (p && p.status_type) || "none";
 
-  // unicode fallback (profile emoji, then CONFIG emoji)
-  const fallback = () => {
+  // Priority, highest first:
+  //   1. the LIVE asset from the bot (assets/status.<ext>) — but only once it
+  //      has actually loaded/decoded;
+  //   2. CONFIG.status (the manual emoji) as the safety net.
+  // profile.json's `emoji_status` is deliberately NOT used: it is only the Bot
+  // API's low-fidelity unicode *guess* at the real custom emoji, so falling back
+  // to it would silently swap in a wrong-looking emoji instead of your chosen one.
+  let settled = false;
+
+  const fallback = (why) => {
+    if (settled) return;                 // a late error must not undo a success
+    settled = true;
     s.classList.remove("status-media");
-    const e = CONFIG.status || (p && p.emoji_status) || "";
+    const e = CONFIG.status || "";
     if (/[<>]/.test(e)) s.innerHTML = e; else s.textContent = e;
+    // info, not warn/error: a missing status asset is an expected, handled state
+    if (why) console.info(`[status] falling back to CONFIG.status — ${why}`);
   };
+
+  // Swap the live asset in ONLY after it loaded, so hydrate()'s emoji stays on
+  // screen until we can actually replace it (no blank flash, no broken glyph).
+  const show = (node) => {
+    if (settled) return;
+    settled = true;
+    s.textContent = "";                  // drops the placeholder emoji
+    s.classList.add("status-media");
+    s.appendChild(node);
+  };
+
   if (type === "none") { fallback(); return; }
 
   const src = `${STATUS_BASE}.${type}?t=${Date.now()}`;
-  s.textContent = "";
-  s.classList.add("status-media");
 
   if (type === "webp") {
     const img = document.createElement("img");
-    img.alt = "status"; img.decoding = "async"; img.src = src;
-    img.onerror = fallback;
-    s.appendChild(img);
+    img.alt = "status";
+    img.decoding = "async";
+    img.addEventListener("load",  () => show(img));
+    img.addEventListener("error", () => fallback(`${STATUS_BASE}.${type} failed to load`));
+    img.src = src;                       // set src LAST so listeners can't be missed
   } else if (type === "webm") {
     const v = document.createElement("video");
     v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
     v.setAttribute("muted", ""); v.setAttribute("playsinline", "");
+    v.addEventListener("loadeddata", () => { show(v); v.play?.().catch(() => {}); });
+    v.addEventListener("error", () => fallback(`${STATUS_BASE}.${type} failed to load`));
     v.src = src;
-    v.onerror = fallback;
-    s.appendChild(v);
-    v.play && v.play().catch(() => {});
   } else if (type === "tgs") {
-    renderTgsStatus(src, s, fallback);
+    renderTgsStatus(src, show, fallback);
   } else {
-    fallback();
+    fallback(`unknown status_type "${type}"`);
   }
 }
 
@@ -364,22 +386,25 @@ function ensureTgsLibs() {
   ]);
   return _tgsLibsPromise;
 }
-async function renderTgsStatus(src, s, fallback) {
+async function renderTgsStatus(src, show, fallback) {
   try {
     await ensureTgsLibs();
     const res = await fetch(src, { cache: "no-store" });
-    if (!res.ok) throw new Error("tgs fetch failed");
+    if (!res.ok) throw new Error(`HTTP ${res.status} fetching ${src}`);
     const buf = new Uint8Array(await res.arrayBuffer());
-    const json = JSON.parse(window.pako.inflate(buf, { to: "string" })); // gunzip .tgs
+    // .tgs is gzipped Lottie JSON — inflate, then parse.
+    const json = JSON.parse(window.pako.inflate(buf, { to: "string" }));
+
+    // Build the animation into a DETACHED container first: if lottie throws we
+    // fall back cleanly, instead of leaving an empty box where the emoji was.
     const box = document.createElement("div");
     box.className = "status-lottie";
-    s.appendChild(box);
     window.lottie.loadAnimation({
       container: box, renderer: "svg", loop: true, autoplay: true, animationData: json,
     });
+    show(box);   // CSS sizes the svg to 100% of .status, so this is safe detached
   } catch (e) {
-    console.warn("[status] animated (.tgs) status failed, using emoji fallback:", e);
-    fallback();
+    fallback(`animated (.tgs) status unavailable: ${(e && e.message) || e}`);
   }
 }
 
