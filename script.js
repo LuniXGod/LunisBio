@@ -58,9 +58,9 @@ const CONFIG = {
 
   /* ---- music playlist (add/remove freely) ---- */
   playlist: [
-    { title: "Myulee — Prombl", file: "assets/track1.mp3" },
-    { title: "Порезы на руках — FORTUNA 812", file: "assets/track3.mp3" },
-    { title: "Люблю — БИТЬМРАЗЕЙ", file: "assets/track2.mp3" },
+    { title: "Stromae — Alors On Danse", file: "assets/track1.mp3" },
+    { title: "Stromae - Tous Les Mêmes", file: "assets/track2.mp3" },
+
   ],
   autoplayOnEnter: true,   // start music right after the "click to enter" gate
 
