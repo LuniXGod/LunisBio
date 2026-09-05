@@ -45,7 +45,7 @@ const CONFIG = {
          .gif                -> <img> (animates on its own)
          .jpg .jpeg .png .webp / .avif -> <img>
      Sizing / overlay / darkening are identical for every type.               */
-  background:      "assets/background.jpg",
+  background:      "assets/background.mp4",
   centerGif:       "",                    // OPTIONAL small gif in the card,
                                          //   e.g. "assets/center.gif" ("" = off)
 
